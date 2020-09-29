@@ -20,15 +20,7 @@ void engine_swap(GLbitfield clear);
 #include "math.h"
 
 #include "mesh.h"
-
-struct camera {
-	vec3 position;
-	quaternion rotation;
-	float ratio, fov, zNear, zFar;
-
-	mat4 proj, view;
-};
-void camera(struct camera *);
+#include "camera.h"
 
 struct shader {
 	GLuint prog;
