@@ -22,5 +22,7 @@ struct mesh {
 void mesh_load(struct mesh *m, size_t count, float *positions, float *normals, float *texcoords);
 void mesh_bind(struct mesh *m, GLint position, GLint normal, GLint texture);
 void mesh_free(struct mesh* m);
+void mesh_load_box(struct mesh *m, float x, float y, float z);
+void mesh_load_quad(struct mesh *m, float x, float y);
 
 #endif

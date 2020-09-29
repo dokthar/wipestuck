@@ -39,5 +39,6 @@ struct shader {
 GLint shader_load(struct shader *s, const char *vertex, const char *fragment, const char *geom);
 void shader_free(struct shader *s);
 
+void engine_render(struct camera *, struct shader *, struct mesh *);
 
 #endif

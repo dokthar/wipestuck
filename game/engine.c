@@ -6,28 +6,28 @@
 GLFWwindow *window;
 
 void
-render(struct camera *c, struct shader *s, struct mesh *m)
+engine_render(struct camera *c, struct shader *s, struct mesh *m)
 {
-	GLint loc;
+	GLint position;
+	GLint normal;
+	GLint texcoord;
+
+	position = glGetAttribLocation(s->prog, "in_pos");
+	normal = glGetAttribLocation(s->prog, "in_normal");
+	texcoord = glGetAttribLocation(s->prog, "in_texcoord");
+	mesh_bind(m, position, normal, texcoord);
 
 	glUseProgram(s->prog);
 	glBindVertexArray(m->vao);
-/*
-	loc = glGetUniformLocation(geometry->shader, "projection");
-	glUniformMatrix4fv(loc, 1, GL_FALSE, (float*)camera->projection);
+	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK);
+	glDepthMask(GL_TRUE);
+	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
 
-	loc = glGetUniformLocation(geometry->shader, "view");
-	glUniformMatrix4fv(loc, 1, GL_FALSE, (float*)camera->view);
+        glDrawArrays(m->primitive, 0, m->vertex_count);
 
-	loc = glGetUniformLocation(geometry->shader, "model");
-	glUniformMatrix4fv(loc, 1, GL_FALSE, (float*)model);
-
-	loc = glGetUniformLocation(geometry->shader, "inverseNormal");
-	glUniformMatrix3fv(loc, 1, GL_FALSE, (float*)inverseNormal);
-*/
-	/* glPolygonMode(GL_FRONT_AND_BACK, geometry->mode); */
+	glBindVertexArray(0);
+	glUseProgram(0);
 }
-
 
 static void
 framebuffer_callback(GLFWwindow* window, int w, int h)
@@ -206,6 +206,71 @@ mesh_free(struct mesh* m)
 
 	if (m->vao && glIsVertexArray(m->vao) == GL_TRUE)
 		glDeleteVertexArrays(1, &m->vao);
+}
+
+void
+mesh_load_quad(struct mesh *m, float x, float y)
+{
+	float positions[] = {
+		-x, -y,  0,
+		-x,  y,  0,
+		 x, -y,  0,
+		 x,  y,  0,
+	};
+	float texcoords[] = {
+		0.0, 0.0,
+		0.0, 1.0,
+		1.0, 0.0,
+		1.0, 1.0,
+	};
+
+	mesh_load(m, 4, positions, NULL, texcoords);
+	m->primitive = GL_TRIANGLE_STRIP;
+}
+
+void
+mesh_load_box(struct mesh *m, float a, float b, float c)
+{
+	/*
+  a,b,-c +---+  -a,b,-c
+        /   /|
+a,b,c  +---+ -a,b,c
+       |\, | |
+       |  \| / -a,-b,-c
+a,-b,c +---+'-a,-b,c
+	 */
+	float positions[] = {
+		/* front */
+		 a,  b,  c,   -a,  b,  c,   -a, -b,  c,   -a, -b,  c,    a, -b,  c,    a,  b,  c,
+		/* back */
+		-a,  b, -c,    a,  b, -c,    a, -b, -c,    a, -b, -c,   -a, -b, -c,   -a,  b, -c,
+		/* left */
+		 a,  b, -c,    a,  b,  c,    a, -b,  c,    a, -b,  c,    a, -b, -c,    a,  b, -c,
+		/* right */
+		-a,  b,  c,   -a,  b, -c,   -a, -b, -c,   -a, -b, -c,   -a, -b,  c,   -a,  b,  c,
+		/* top */
+		 a,  b, -c,   -a,  b, -c,   -a,  b,  c,   -a,  b,  c,    a,  b,  c,    a,  b, -c,
+		/* bot */
+		 a, -b,  c,   -a, -b,  c,   -a, -b, -c,   -a, -b, -c,    a, -b, -c,    a, -b,  c,
+	};
+	float normals[] = {
+		 0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,
+		 0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,
+		 1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,
+		-1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,
+		 0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,
+		 0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,
+	};
+	float texcoords[] = {
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
+	};
+	mesh_load(m, 36, positions, normals, texcoords);
+	m->primitive = GL_TRIANGLES;
 }
 
 char logbuf[4096];

@@ -182,9 +182,6 @@ const char *normal_frag =
 	"	out_color = vec4(abs(color), 1);\n"
 	"}\n";
 
-static void quad_load(struct mesh *m);
-static void render_quad(struct shader *s, struct mesh *m);
-static void box_load(struct mesh *m);
 static void render_box(struct camera *c, struct shader *s, struct mesh *m);
 
 static void camera_get_left(struct camera* c, vec3 left) {
@@ -306,7 +303,7 @@ main(int argc, char **argv)
 	init_engine();
 	ret = shader_load(&shad, vert, frag, NULL);
 	ret = shader_load(&normal_shad, normal_vert, normal_frag, normal_geom);
-	box_load(&box);
+	mesh_load_box(&box, 0.5, 0.5, 0.5);
 	camera_set(&cam, 1.04, (float)width / (float)height);
 	camera_move(&cam, (vec3){ 0, 0, -5});
 
@@ -345,125 +342,17 @@ camera_bind(struct shader *s, struct camera *c)
 static void
 render_box(struct camera *c, struct shader *s, struct mesh *m)
 {
-	GLint position;
-	GLint normal;
-	GLint texcoord;
-	static int once = 1;
-
-	if (1) {
-		once = 0;
-		position = glGetAttribLocation(s->prog, "in_pos");
-		normal = glGetAttribLocation(s->prog, "in_normal");
-		texcoord = glGetAttribLocation(s->prog, "in_texcoord");
-		mesh_bind(m, position, normal, texcoord);
-	}
 	GLint time = glGetUniformLocation(s->prog, "time");
+
 	if (time >= 0)
 		glProgramUniform1f(s->prog, time, glfwGetTime());
 
-	glUseProgram(s->prog);
-	glBindVertexArray(m->vao);
-	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK);
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+	camera_bind(s, c);
 
 	if (xray)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	camera_bind(s, c);
-        glDrawArrays(m->primitive, 0, m->vertex_count);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
-}
-
-static void
-box_load(struct mesh *m)
-{
-	/* 
-  a,b,-c +---+  -a,b,-c
-        /   /|
-a,b,c  +---+ -a,b,c
-       |\, | |
-       |  \| / -a,-b,-c
-a,-b,c +---+'-a,-b,c
-	 */
-	float a = 0.5, b = 0.5, c = 0.5;
-	float normals[] = {
-		 0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,    0,  0,  1,
-		 0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,    0,  0, -1,
-		 1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,    1,  0,  0,
-		-1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,   -1,  0,  0,
-		 0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,    0,  1,  0,
-		 0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,    0, -1,  0,
-	};
-	float positions[] = {
-		/* front */
-		 a,  b,  c,   -a,  b,  c,   -a, -b,  c,   -a, -b,  c,    a, -b,  c,    a,  b,  c,
-		/* back */
-		-a,  b, -c,    a,  b, -c,    a, -b, -c,    a, -b, -c,   -a, -b, -c,   -a,  b, -c,
-		/* left */
-		 a,  b, -c,    a,  b,  c,    a, -b,  c,    a, -b,  c,    a, -b, -c,    a,  b, -c,
-		/* right */
-		-a,  b,  c,   -a,  b, -c,   -a, -b, -c,   -a, -b, -c,   -a, -b,  c,   -a,  b,  c,
-		/* top */
-		 a,  b, -c,   -a,  b, -c,   -a,  b,  c,   -a,  b,  c,    a,  b,  c,    a,  b, -c,
-		/* bot */
-		 a, -b,  c,   -a, -b,  c,   -a, -b, -c,   -a, -b, -c,    a, -b, -c,    a, -b,  c,
-	};
-	float texcoords[] = {
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-		0, 1,    1, 1,    1, 0,    1, 0,    0, 0,    0, 1,
-	};
-	mesh_load(m, 36, positions, normals, texcoords);
-	m->primitive = GL_TRIANGLES;
-}
-
-static void
-quad_load(struct mesh *m)
-{
-	static float quad_pos[] = {
-		-1.0, -1.0,  0,
-		-1.0,  1.0,  0,
-		 1.0, -1.0,  0,
-		 1.0,  1.0,  0,
-	};
-	static float quad_txc[] = {
-		0.0, 0.0,
-		0.0, 1.0,
-		1.0, 0.0,
-		1.0, 1.0,
-	};
-
-	mesh_load(m, 4, quad_pos, NULL, quad_txc);
-	m->primitive = GL_TRIANGLE_STRIP;
-}
-
-static void
-render_quad(struct shader *s, struct mesh *m)
-{
-	GLint position;
-	GLint texcoord;
-	static int once = 1;
-
-	if (once) {
-		once = 0;
-		position = glGetAttribLocation(s->prog, "in_pos");
-		texcoord = glGetAttribLocation(s->prog, "in_texcoord");
-		mesh_bind(m, position, -1, texcoord);
-	}
-
-	glUseProgram(s->prog);
-	glBindVertexArray(m->vao);
-
-        glDrawArrays(m->primitive, 0, m->vertex_count);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
+	engine_render(c, s, m);
 }
