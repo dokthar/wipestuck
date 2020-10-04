@@ -192,6 +192,51 @@ void camera_look_at(struct camera* c, vec3 look_at, vec3 up);
 
 void rotation_between_vec3(quaternion q, vec3 start, vec3 dest, vec3 up);
 
+vec3 cam_pos;
+vec3 cam_look;
+float radius = 10;
+float cr = 0.5;
+
+void
+game_update(void)
+{
+	float time, aheadtime;
+	float lookahead = 0.15;
+	float surfdist = 0.9;
+	vec3 cc, cp, cn;
+
+	time = glfwGetTime();
+
+	aheadtime = time + lookahead;
+	cc[0] = radius * cos(aheadtime);
+	cc[1] = 0;
+	cc[2] = radius * sin(aheadtime);
+	cp[0] = cos(aheadtime) * cos(position) * cr * surfdist;
+	cp[1] = sin(position) * cr * surfdist;
+	cp[2] = sin(aheadtime) * cos(position) * cr * surfdist;
+	sub3v(cam_look, cc, cp);
+
+	float dist = surfdist - lookahead;
+	cc[0] = radius * cos(time);
+	cc[1] = 0;
+	cc[2] = radius * sin(time);
+	cp[0] = cos(time) * cos(position) * cr * dist;
+	cp[1] = sin(position) * cr * dist;
+	cp[2] = sin(time) * cos(position) * cr * dist;
+	sub3v(cam_pos, cc, cp);
+
+	add3v(cn, cp, (vec3){0,0,0});
+	normalize3(cn);
+	if (!flycam) {
+		quaternion q;
+		vec3 dir;
+
+		sub3v(dir, cam_look, cam.position);
+		quaternion_look_at(q, dir, cn);
+		camera_set_position(&cam, cam_pos);
+		camera_set_rotation(&cam, q);
+	}
+}
 
 int
 main(int argc, char **argv)
@@ -200,13 +245,7 @@ main(int argc, char **argv)
 	struct shader normal_shad;
 	struct mesh torus;
 	struct mesh box1, box2;
-	vec3 cam_pos;
-	vec3 cam_look;
 	GLint ret;
-	float time;
-	float radius = 10;
-	float cr = 0.5;
-	vec3 cc, cp, cn;
 
 	app_name = argv[0];
 
@@ -227,49 +266,14 @@ main(int argc, char **argv)
 	while (!engine_shutdown()) {
 		engine_swap(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		engine_poll();
-		time = glfwGetTime();
 
-		cc[0] = radius * cos(time + 0.2);
-		cc[1] = 0;
-		cc[2] = radius * sin(time + 0.2);
-		cp[0] = cos(time + 0.2) * cos(position) * cr * 0.9;
-		cp[1] = sin(position) * cr * 0.9;
-		cp[2] = sin(time + 0.2) * cos(position) * cr * 0.9;
-		sub3v(cam_look, cc, cp);
-		render_box(&cam, &shad, &box1, cam_look);
-
-		cc[0] = radius * cos(time);
-		cc[1] = 0;
-		cc[2] = radius * sin(time);
-		cp[0] = cos(time) * cos(position) * cr * 0.85;
-		cp[1] = sin(position) * cr * 0.85;
-		cp[2] = sin(time) * cos(position) * cr * 0.85;
-		sub3v(cam_pos, cc, cp);
-
-		add3v(cn, cp, (vec3){0,0,0});
-		normalize3(cn);
-		if (!flycam) {
-
-			vec3 up, fwd;
-			vec4 nn, nnn;
-			float an;
-			mat3 view;
-			quaternion q;
-
-			nn[0] = sin(time);
-			nn[1] = cos(time);
-			nn[2] = 0;
-			nn[3] = 1;
-
-			vec3 s, u, f;
-			sub3v(f, cam_look, cam.position);
-			quaternion_look_at(q, f, cn);
-			camera_set_position(&cam, cam_pos);
-			camera_set_rotation(&cam, q);
-		}
+		game_update();
 
 		render_box(&cam, &shad, &torus, NULL);
-		render_box(&cam, &normal_shad, &torus, NULL);
+		if (xray)
+			render_box(&cam, &normal_shad, &torus, NULL);
+
+		render_box(&cam, &shad, &box1, cam_look);
 		render_box(&cam, &shad, &box1, cam_pos);
 	}
 
