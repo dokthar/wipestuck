@@ -1,5 +1,4 @@
 #include <string.h>
-#include <math.h>
 #include "engine.h"
 
 static void camera_update_view(struct camera *c);
@@ -21,9 +20,24 @@ camera_set(struct camera* c, float fov, float ratio)
 	camera_update_view(c);
 	camera_update_proj(c);
 }
+void
+camera_bind_view(struct camera *c, GLuint prog, GLint loc)
+{
+	glProgramUniformMatrix4fv(prog, loc, 1, GL_FALSE, (float *)c->view);
+}
 
 void
-camera_get_left(struct camera* c, vec3 left)
+camera_bind_proj(struct camera *c, GLuint prog, GLint loc, float ratio)
+{
+	mat4 p;
+
+	memcpy(p, c->proj, sizeof(p));
+	p[0][0] /= ratio;
+	glProgramUniformMatrix4fv(prog, loc, 1, GL_FALSE, (float *)p);
+}
+
+void
+camera_get_left(struct camera *c, vec3 left)
 {
 	mat3 rot;
 	quaternion_to_rot3(rot, c->rotation);
@@ -31,7 +45,7 @@ camera_get_left(struct camera* c, vec3 left)
 }
 
 void
-camera_get_up(struct camera* c, vec3 up)
+camera_get_up(struct camera *c, vec3 up)
 {
 	mat3 rot;
 	quaternion_to_rot3(rot, c->rotation);
@@ -39,7 +53,7 @@ camera_get_up(struct camera* c, vec3 up)
 }
 
 void
-camera_get_dir(struct camera* c, vec3 dir)
+camera_get_dir(struct camera *c, vec3 dir)
 {
 	mat3 rot;
 	quaternion_to_rot3(rot, c->rotation);
@@ -47,23 +61,102 @@ camera_get_dir(struct camera* c, vec3 dir)
 }
 
 void
-camera_move(struct camera* c, vec3 off)
+camera_set_position(struct camera *c, vec3 pos)
+{
+	memcpy(c->position, pos, sizeof(c->position));
+	camera_update_view(c);
+}
+
+void
+camera_move(struct camera *c, vec3 off)
 {
 	incr3v(c->position, off);
 	camera_update_view(c);
 }
 
 void
-camera_rotate(struct camera* c, vec3 axis, float angle)
+camera_rotate(struct camera *c, vec3 axis, float angle)
 {
 	quaternion q, old;
 
 	quaternion_set_axis_angle(q, axis, angle);
-	memcpy(old, c->rotation, sizeof(quaternion));
+	memcpy(old, c->rotation, sizeof(old));
 	quaternion_mul(c->rotation, q, old);
 	camera_update_view(c);
 }
 
+void
+camera_set_rotation(struct camera *c, quaternion q)
+{
+	memcpy(c->rotation, q, sizeof(c->rotation));
+	camera_update_view(c);
+}
+
+/**
+ * Calcule le quartenion permettant de tourner la camera de sa position
+ * courante vers l'objet a observer. Si la camera tourne le dos a l'objet 
+ * on utilise up (axe vertical de la camera comme axe de rotation)
+ */
+static void
+rotation_lookat(quaternion q, vec3 start, vec3 dest, vec3 up) {
+	vec3 u, s, d;
+	float cosa;
+
+	memcpy(s, start, sizeof(s));
+	memcpy(d, dest, sizeof(d));
+	normalize3(s);
+	normalize3(d);
+
+	cosa = dot3(s, d);
+	if (fabsf(cosa) > (1 - 0.0001)) {
+		memcpy(u, up, sizeof(u));
+		printf("yyyyyyyyyyyyyyyyyyyyyyyooooooooooooooooooou\n");
+	} else {
+		cross3(u, s, d);
+	}
+
+	quaternion_set_axis_angle(q, u, acos(cosa));
+}
+
+#if 1
+void
+camera_look_at(struct camera *c, vec3 look_at, vec3 up)
+{
+	vec3 start, dest;
+	quaternion rot, old;
+
+	camera_get_dir(c, start);
+	sub3v(dest, look_at, c->position);
+
+	rotation_lookat(rot, start, dest, up);
+
+	memcpy(old, c->rotation, sizeof(old));
+	quaternion_mul(c->rotation, rot, old);
+	camera_update_view(c);
+}
+#else
+void
+camera_look_at(struct camera *c, vec3 look_at, vec3 up)
+{
+	vec3 s, u, f;
+	sub3v(f, look_at, c->position);
+	normalize3(f);
+
+	float a = dot3((vec3){0,0,1}, f);
+	cross3(u, (vec3){0,0,1}, f);
+	normalize3(u);
+
+	quaternion_set_axis_angle(c->rotation, u, acos(a));
+
+	camera_update_view(c);
+#if 0	
+	cross3(s, up, f);
+	normalize3(s);
+	cross3(u, f, s);
+	normalize3(u);
+#endif
+}
+#endif
 static void
 camera_update_view(struct camera *c)
 {
@@ -107,7 +200,7 @@ M = s0  s1  s2 0
 // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
 
 static void
-camera_update_proj(struct camera* c)
+camera_update_proj(struct camera *c)
 {
 	float tanHalfFov = tan(c->fov / 2.0);
 

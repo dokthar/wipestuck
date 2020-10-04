@@ -55,6 +55,11 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	case 'Z':
 		if (action == GLFW_PRESS) {
 			flycam = !flycam;
+			if (flycam) {
+				quaternion qid;
+				quaternion_load_id(qid);
+				camera_set_rotation(&cam, qid);
+			}
 			if (flycam)
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			else
@@ -105,11 +110,12 @@ const char *vert =
 	"uniform mat4 proj;\n"
 	"uniform mat4 view;\n"
 	"uniform mat4 model;\n"
+	"uniform float time;\n"
 	"void main(void)\n"
 	"{\n"
 //	"	gl_Position = vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);\n"
-//	"	gl_Position = projection * view * model * vec4(in_pos, 1.0);"
-	"	gl_Position = proj * view * vec4(in_pos, 1.0);"
+	"	gl_Position = proj * view * model * (vec4(in_pos, 1.0));"
+//	"	gl_Position = proj * view * vec4(in_pos, 1.0);"
 	"	texcoord = in_texcoord;\n"
 	"	normal = in_normal;\n"
 	"}\n";
@@ -122,9 +128,11 @@ const char *frag =
 	"uniform float time;\n"
 	"void main(void)\n"
 	"{\n"
-	"	vec2 uv = (texcoord -0.5 )* 10;\n"
+	"	vec2 uv = mix(texcoord * 2, 2-texcoord * 2, step(0.5, texcoord));\n"
 	"float a = time;\n"
-	"uv *= mat2(cos(a), sin(a), -sin(a), cos(a));\n"
+	"uv *= 20;\n"
+//	"uv *= mat2(cos(a), sin(a), -sin(a), cos(a));\n"
+//	"	vec3 col = vec3(step(0.5, fract(uv.rrr)));\n"
 	"	vec3 col = vec3(fract(uv), sin(time*10)*.5+.5);\n"
 	"	out_color = vec4(col,0);\n"
 	"}\n";
@@ -139,7 +147,7 @@ const char *normal_vert =
 	"uniform mat4 model;\n"
 	"void main(void)\n"
 	"{\n"
-	"	gl_Position = vec4(in_pos, 1.0);"
+	"	gl_Position =   proj * view * model * vec4(in_pos, 1.0);"
 	"	normal = in_normal;\n"
 	"}\n";
 
@@ -152,12 +160,14 @@ const char *normal_geom =
 	"const float MAGNITUDE = 0.2;\n"
 	"uniform mat4 proj;\n"
 	"uniform mat4 view;\n"
+	"uniform mat4 model;\n"
 	"void GenerateLine(int index) {\n"
-	"	gl_Position = proj * view *gl_in[index].gl_Position;\n"
-	"	color = normal[index];\n"
+	"	vec4 norm = proj * view * model * vec4(normal[index], 0.0) * MAGNITUDE;\n"
+	"	gl_Position = gl_in[index].gl_Position;\n"
+	"	color = normalize(normal[index]);\n"
 	"	EmitVertex();\n"
-	"	gl_Position = proj * view*(gl_in[index].gl_Position + vec4(normal[index], 0.0) * MAGNITUDE);\n"
-	"	color = normal[index];\n"
+	"	gl_Position = gl_in[index].gl_Position + norm;\n"
+	"	color = normalize(normal[index]);\n"
 	"	EmitVertex();\n"
 	"	EndPrimitive();\n"
 	"}\n"
@@ -175,31 +185,60 @@ const char *normal_frag =
 	"	out_color = vec4(abs(color), 1);\n"
 	"}\n";
 
-static void render_box(struct camera *c, struct shader *s, struct mesh *m);
+static void render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at);
+void camera_look_at(struct camera* c, vec3 look_at, vec3 up);
 
 int
 main(int argc, char **argv)
 {
 	struct shader shad;
 	struct shader normal_shad;
-	struct mesh box;
+	struct mesh torus;
+	struct mesh box1, box2;
+	vec3 cam_pos;
+	vec3 cam_look;
 	GLint ret;
+	float time;
+	int radius = 10;
 
 	app_name = argv[0];
 
 	init_engine();
 	ret = shader_load(&shad, vert, frag, NULL);
 	ret = shader_load(&normal_shad, normal_vert, normal_frag, normal_geom);
-	mesh_load_box(&box, 0.5, 0.5, 0.5);
-	camera_set(&cam, 1.04, (float)width / (float)height);
-	camera_move(&cam, (vec3){ 0, 0, -5});
 
+	mesh_load_torus(&torus, 1, -radius, 30, 200);
+	mesh_load_box(&box1, 0.2, 0.2, 0.2);
+	mesh_load_box(&box2, 0.1, 1.0, 0.1);
+
+	camera_set(&cam, 1.05, (float)width / (float)height);
+	camera_move(&cam, (vec3){ 0, 0, 0});
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	while (!engine_shutdown()) {
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		engine_poll();
-		render_box(&cam, &shad, &box);
-		render_box(&cam, &normal_shad, &box);
 		engine_swap(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		engine_poll();
+		time = glfwGetTime();
+
+		cam_pos[0] = radius * cos(time);
+		cam_pos[1] = 0;
+		cam_pos[2] = radius * sin(time);
+
+		cam_look[0] = radius * cos(time + 0.8);
+		cam_look[1] = 0;
+		cam_look[2] = radius * sin(time + 0.8);
+
+		if (!flycam) {
+			vec3 up;
+			camera_set_position(&cam, cam_pos);
+			camera_get_up(&cam, up);
+			camera_look_at(&cam, cam_look, up);
+		}
+
+		render_box(&cam, &shad, &torus, NULL);
+		render_box(&cam, &normal_shad, &torus, NULL);
+		render_box(&cam, &shad, &box1, cam_pos);
+		render_box(&cam, &shad, &box2, cam_look);
 	}
 
 	shader_free(&shad);
@@ -211,30 +250,36 @@ main(int argc, char **argv)
 static void
 camera_bind(struct shader *s, struct camera *c)
 {
-	mat4 p;
-	GLint proj;
-	GLint view;
-	GLint ratio;
+	GLint proj, view;
 
 	proj = glGetUniformLocation(s->prog, "proj");
 	view = glGetUniformLocation(s->prog, "view");
 
-	memcpy(p, c->proj, sizeof(p));
-	p[0][0] /= (float)width / (float)height;
-	
-	glProgramUniformMatrix4fv(s->prog, proj, 1, GL_FALSE, (float *)p);
-	glProgramUniformMatrix4fv(s->prog, view, 1, GL_FALSE, (float *)c->view);
+	camera_bind_proj(c, s->prog, proj, (float)width / (float)height);
+	camera_bind_view(c, s->prog, view);
 }
 
 static void
-render_box(struct camera *c, struct shader *s, struct mesh *m)
+render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at)
 {
+	GLint model_loc;
+	mat4 model;
 	GLint time = glGetUniformLocation(s->prog, "time");
 
 	if (time >= 0)
 		glProgramUniform1f(s->prog, time, glfwGetTime());
 
 	camera_bind(s, c);
+	model_loc = glGetUniformLocation(s->prog, "model");
+	load_id4(model);
+	if (at) {
+		model[3][0] = at[0];
+		model[3][1] = at[1];
+		model[3][2] = at[2];
+		model[3][3] = 1;
+	}
+
+	glProgramUniformMatrix4fv(s->prog, model_loc, 1, GL_FALSE, (float *)model);
 
 	if (xray)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

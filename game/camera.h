@@ -9,11 +9,13 @@ struct camera {
 	mat4 proj, view;
 };
 void camera_set(struct camera* c, float fov, float ratio);
-void camera_get_view(struct camera *c, mat4 view);
-void camera_get_proj(struct camera *c, mat4 proj);
+void camera_bind_view(struct camera *c, GLuint prog, GLint loc);
+void camera_bind_proj(struct camera *c, GLuint prog, GLint loc, float ratio);
 void camera_get_up(struct camera* c, vec3 up);
 void camera_get_dir(struct camera* c, vec3 dir);
 void camera_get_left(struct camera* c, vec3 left);
+void camera_set_position(struct camera* c, vec3 pos);
+void camera_set_rotation(struct camera *c, quaternion q);
 void camera_move(struct camera* c, vec3 off);
 void camera_rotate(struct camera* c, vec3 axis, float angle);
 

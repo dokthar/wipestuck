@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 #include "math.h"
 
 const vec3 VEC3_AXIS_X = {1,0,0};
@@ -628,6 +627,51 @@ void quaternion_load_id(quaternion q) {
 	q[2] = 0;
 	q[3] = 0;
 }
+void quaternion_from_rot3(quaternion q, mat3 m);
+void quaternion_look_at(quaternion q, vec3 dir, vec3 up) {
+	vec3 s, u, f;
+	mat3 m;
+
+	memcpy(f, dir, sizeof(f));
+	normalize3(f);
+	cross3(s, up, f);
+	normalize3(s);
+	cross3(u, f, s);
+	normalize3(u);
+#if 0
+/*
+	vec3 f, s, u;
+
+	zero3v(f);
+	decr3v(f, forward);
+	normalize3(f); // normalize(-forward)
+	cross3(s, up, f);
+	normalize3(s);
+	cross3(u, f, s);
+*/
+	
+	vars.vect3.set(direction).normalizeLocal();
+	vars.vect1.set(up).crossLocal(direction).normalizeLocal();
+	vars.vect2.set(direction).crossLocal(vars.vect1).normalizeLocal();
+
+	q[1] = axis[0];
+	q[2] = axis[1];
+	q[3] = axis[2];
+	q[0] = sqrt((v1.Length ^ 2) * (v2.Length ^ 2)) + dot3(up, dir);
+#endif
+
+	m[0][0] = s[0];
+	m[0][1] = s[1];
+	m[0][2] = s[2];
+	m[1][0] = u[0];
+	m[1][1] = u[1];
+	m[1][2] = u[2];
+	m[2][0] = f[0];
+	m[2][1] = f[1];
+	m[2][2] = f[2];
+
+	quaternion_from_rot3(q, m);
+}
 
 void quaternion_set_axis_angle(quaternion q, vec3 axis, float angle) {
 	float s = sin(angle * 0.5);
@@ -735,7 +779,7 @@ void quaternion_from_mat4(quaternion dest, mat4 src) {
 }
 
 void lookat_from_axes(mat4 dest, vec3 forward, vec3 up, vec3 side) {
-	vec3 f, s, u;
+	vec3 s, u, f;
 
 	zero3v(f);
 	decr3v(f, forward);
@@ -796,6 +840,80 @@ void quaternion_to_rot3(mat3 dest, quaternion src) {
 	dest[2][0] = (xz - yw);
 	dest[2][1] = (yz + xw);
 	dest[2][2] = 1 - (xx + yy);
+}
+
+void quaternion_from_rot3(quaternion q, mat3 m)
+{
+	float m00 = m[0][0];
+	float m01 = m[1][0];
+	float m02 = m[2][0];
+	float m10 = m[0][1];
+	float m11 = m[1][1];
+	float m12 = m[2][1];
+	float m20 = m[0][2];
+	float m21 = m[1][2];
+	float m22 = m[1][2];
+        float lengthSquared = m00 * m00 + m10 * m10 + m20 * m20;
+	float s, t;
+	float x, y, z, w;
+
+	if (lengthSquared != 1 && lengthSquared != 0) {
+		lengthSquared = 1.0 / sqrt(lengthSquared);
+		m00 *= lengthSquared;
+		m10 *= lengthSquared;
+		m20 *= lengthSquared;
+	}
+	lengthSquared = m01 * m01 + m11 * m11 + m21 * m21;
+	if (lengthSquared != 1 && lengthSquared != 0) {
+		lengthSquared = 1.0 / sqrt(lengthSquared);
+		m01 *= lengthSquared;
+		m11 *= lengthSquared;
+		m21 *= lengthSquared;
+	}
+	lengthSquared = m02 * m02 + m12 * m12 + m22 * m22;
+	if (lengthSquared != 1 && lengthSquared != 0) {
+		lengthSquared = 1.0 / sqrt(lengthSquared);
+		m02 *= lengthSquared;
+		m12 *= lengthSquared;
+		m22 *= lengthSquared;
+	}
+
+        t = m00 + m11 + m22;
+
+        if (t >= 0) { // |w| >= .5
+		s = sqrt(t + 1); // |s|>=1 ...
+		w = 0.5 * s;
+		s = 0.5 / s;                 // so this division isn't bad
+		x = (m21 - m12) * s;
+		y = (m02 - m20) * s;
+		z = (m10 - m01) * s;
+	} else if ((m00 > m11) && (m00 > m22)) {
+		s = sqrt(1.0 + m00 - m11 - m22); // |s|>=1
+		x = s * 0.5; // |x| >= .5
+		s = 0.5 / s;
+		y = (m10 + m01) * s;
+		z = (m02 + m20) * s;
+		w = (m21 - m12) * s;
+	} else if (m11 > m22) {
+		s = sqrt(1.0 + m11 - m00 - m22); // |s|>=1
+		y = s * 0.5; // |y| >= .5
+		s = 0.5 / s;
+		x = (m10 + m01) * s;
+		z = (m21 + m12) * s;
+		w = (m02 - m20) * s;
+	} else {
+		s = sqrt(1.0 + m22 - m00 - m11); // |s|>=1
+		z = s * 0.5; // |z| >= .5
+		s = 0.5 / s;
+		x = (m02 + m20) * s;
+		y = (m21 + m12) * s;
+		w = (m10 - m01) * s;
+	}
+
+	q[0] = w;
+	q[1] = x;
+	q[2] = y;
+	q[3] = z;
 }
 
 void quaternion_decompose_swing_twist(quaternion src, vec3 direction, quaternion swing, quaternion twist) {

@@ -20,9 +20,11 @@ struct mesh {
 };
 
 void mesh_load(struct mesh *m, size_t count, float *positions, float *normals, float *texcoords);
+void mesh_index(struct mesh *m, size_t count, unsigned int *index);
 void mesh_bind(struct mesh *m, GLint position, GLint normal, GLint texture);
 void mesh_free(struct mesh* m);
 void mesh_load_box(struct mesh *m, float x, float y, float z);
 void mesh_load_quad(struct mesh *m, float x, float y);
-
+void mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius, unsigned int circle_sides, unsigned int radial_sides);
+void mesh_load_cylinder(struct mesh *m, float h, float r, unsigned int sides);
 #endif
