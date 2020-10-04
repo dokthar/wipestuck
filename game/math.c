@@ -441,6 +441,8 @@ void mul4sm(RESTRICT_MAT4(dest), float s, RESTRICT_MAT4(m)) {
 }
 
 void mul4mv(RESTRICT_VEC4(res), RESTRICT_MAT4(m), RESTRICT_VEC4(v)) {
+	
+	
 	res[0] = m[0][0] * v[0] + m[1][0] * v[1] + m[2][0] * v[2] + m[3][0] * v[3];
 	res[1] = m[0][1] * v[0] + m[1][1] * v[1] + m[2][1] * v[2] + m[3][1] * v[3];
 	res[2] = m[0][2] * v[0] + m[1][2] * v[1] + m[2][2] * v[2] + m[3][2] * v[3];
@@ -530,7 +532,6 @@ void mat3to4(RESTRICT_MAT4(dest), RESTRICT_MAT3(src)) {
 	memcpy(dest[1], src[1], sizeof(vec3));
 	memcpy(dest[2], src[2], sizeof(vec3));
 }
-
 
 /* Rotations */
 void load_rot3(RESTRICT_MAT3(dest), RESTRICT_VEC3(axis), float angle) {
@@ -659,15 +660,14 @@ void quaternion_look_at(quaternion q, vec3 dir, vec3 up) {
 	q[3] = axis[2];
 	q[0] = sqrt((v1.Length ^ 2) * (v2.Length ^ 2)) + dot3(up, dir);
 #endif
-
 	m[0][0] = s[0];
-	m[0][1] = s[1];
-	m[0][2] = s[2];
-	m[1][0] = u[0];
+	m[0][1] = u[0];
+	m[0][2] = f[0];
+	m[1][0] = s[1];
 	m[1][1] = u[1];
-	m[1][2] = u[2];
-	m[2][0] = f[0];
-	m[2][1] = f[1];
+	m[1][2] = f[1];
+	m[2][0] = s[2];
+	m[2][1] = u[2];
 	m[2][2] = f[2];
 
 	quaternion_from_rot3(q, m);
@@ -778,30 +778,53 @@ void quaternion_from_mat4(quaternion dest, mat4 src) {
 	quaternion_set_axis_angle(dest, axis, atan2(norm3(axis) / 2.0, (src[0][0] + src[1][1] + src[2][2] - 1.0) / 2.0));
 }
 
-void lookat_from_axes(mat4 dest, vec3 forward, vec3 up, vec3 side) {
+void lookat_from_axes(quaternion q, vec3 forward, vec3 up, vec3 side) {
 	vec3 s, u, f;
+	mat3 rot;
 
-	zero3v(f);
-	decr3v(f, forward);
+	//zero3v(f);
+	//decr3v(f, forward);
+	sub3v(f, (vec3){0}, forward);
 	normalize3(f); // normalize(-forward)
-	cross3(s, up, f);
+	cross3(s, f, up);
 	normalize3(s);
 	cross3(u, f, s);
+/*
+m00 = x.x
+m01 = y.x
+m02 = z.x
+m10 = x.y
+m11 = y.y
+m12 = z.y
+m20 = x.z
+m21 = y.z
+m22 = z.z
 
-	dest[0][0] = s[0];
-	dest[1][0] = s[1];
-	dest[2][0] = s[2];
-	dest[0][1] = u[0];
-	dest[1][1] = u[1];
-	dest[2][1] = u[2];
-	dest[0][2] =-f[0];
-	dest[1][2] =-f[1];
-	dest[2][2] =-f[2];
+m00 = s.x
+m01 = u.x
+m02 =-f.x
+m10 = s.y
+m11 = u.y
+m12 =-f.y
+m20 = s.z
+m21 = u.z
+m22 =-f.z
+*/
+	rot[0][0] = s[0];
+	rot[0][1] = u[0];
+	rot[0][2] =-f[0];
+	rot[1][0] = s[1];
+	rot[1][1] = u[1];
+	rot[1][2] =-f[1];
+	rot[2][0] = s[2];
+	rot[2][1] = u[2];
+	rot[2][2] =-f[2];
 	/*
 	dest[3][0] =-dot3(s, eye);
 	dest[3][1] =-dot3(u, eye);
 	dest[3][2] = dot3(f, eye);
 	*/
+	quaternion_from_rot3(q, rot);
 }
 /*
 float quaternion_norm(quaternion q) {
@@ -845,14 +868,14 @@ void quaternion_to_rot3(mat3 dest, quaternion src) {
 void quaternion_from_rot3(quaternion q, mat3 m)
 {
 	float m00 = m[0][0];
-	float m01 = m[1][0];
-	float m02 = m[2][0];
-	float m10 = m[0][1];
+	float m01 = m[0][1];
+	float m02 = m[0][2];
+	float m10 = m[1][0];
 	float m11 = m[1][1];
-	float m12 = m[2][1];
-	float m20 = m[0][2];
-	float m21 = m[1][2];
-	float m22 = m[1][2];
+	float m12 = m[1][2];
+	float m20 = m[2][0];
+	float m21 = m[2][1];
+	float m22 = m[2][2];
         float lengthSquared = m00 * m00 + m10 * m10 + m20 * m20;
 	float s, t;
 	float x, y, z, w;
@@ -889,21 +912,21 @@ void quaternion_from_rot3(quaternion q, mat3 m)
 		z = (m10 - m01) * s;
 	} else if ((m00 > m11) && (m00 > m22)) {
 		s = sqrt(1.0 + m00 - m11 - m22); // |s|>=1
-		x = s * 0.5; // |x| >= .5
+		x = 0.5 * s; // |x| >= .5
 		s = 0.5 / s;
 		y = (m10 + m01) * s;
 		z = (m02 + m20) * s;
 		w = (m21 - m12) * s;
 	} else if (m11 > m22) {
 		s = sqrt(1.0 + m11 - m00 - m22); // |s|>=1
-		y = s * 0.5; // |y| >= .5
+		y = 0.5 * s; // |y| >= .5
 		s = 0.5 / s;
 		x = (m10 + m01) * s;
 		z = (m21 + m12) * s;
 		w = (m02 - m20) * s;
 	} else {
 		s = sqrt(1.0 + m22 - m00 - m11); // |s|>=1
-		z = s * 0.5; // |z| >= .5
+		z = 0.5 * s; // |z| >= .5
 		s = 0.5 / s;
 		x = (m02 + m20) * s;
 		y = (m21 + m12) * s;

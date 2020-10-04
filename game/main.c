@@ -16,6 +16,8 @@ struct camera cam;
 int flycam;
 double xpre, ypre;
 int xray = 0;
+float position = 0;
+float speed = 1.5;
 
 void
 cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
@@ -33,6 +35,8 @@ cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 		camera_get_left(&cam, left);
 		normalize3(left);
 		camera_rotate(&cam, left, -0.001 * dy);
+	} else {
+		position += speed * (dx / (float)width);
 	}
 	xpre = xpos;
 	ypre = ypos;
@@ -60,10 +64,6 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 				quaternion_load_id(qid);
 				camera_set_rotation(&cam, qid);
 			}
-			if (flycam)
-				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			else
-				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 			glfwGetCursorPos(window, &xpre, &ypre);
 		}
 		break;
@@ -127,9 +127,11 @@ const char *frag =
 	"out vec4 out_color;\n"
 	"uniform float time;\n"
 	"void main(void)\n"
+	"#define M_PI 3.1416\n"
 	"{\n"
-	"	vec2 uv = mix(texcoord * 2, 2-texcoord * 2, step(0.5, texcoord));\n"
-	"float a = time;\n"
+	"	vec2 uv = texcoord + vec2(0.5*time/ M_PI, 0);\n"
+//		"	vec2 uv = mix(texcoord * 2, 2-texcoord * 2, step(0.5, texcoord));\n"
+	"\n"
 	"uv *= 20;\n"
 //	"uv *= mat2(cos(a), sin(a), -sin(a), cos(a));\n"
 //	"	vec3 col = vec3(step(0.5, fract(uv.rrr)));\n"
@@ -188,6 +190,9 @@ const char *normal_frag =
 static void render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at);
 void camera_look_at(struct camera* c, vec3 look_at, vec3 up);
 
+void rotation_between_vec3(quaternion q, vec3 start, vec3 dest, vec3 up);
+
+
 int
 main(int argc, char **argv)
 {
@@ -199,20 +204,24 @@ main(int argc, char **argv)
 	vec3 cam_look;
 	GLint ret;
 	float time;
-	int radius = 10;
+	float radius = 10;
+	float cr = 0.5;
+	vec3 cc, cp, cn;
 
 	app_name = argv[0];
 
 	init_engine();
+
 	ret = shader_load(&shad, vert, frag, NULL);
 	ret = shader_load(&normal_shad, normal_vert, normal_frag, normal_geom);
 
-	mesh_load_torus(&torus, 1, -radius, 30, 200);
-	mesh_load_box(&box1, 0.2, 0.2, 0.2);
+	mesh_load_torus(&torus, cr, -radius, 30, 200);
+	mesh_load_box(&box1, 0.02, 0.02, 0.02);
 	mesh_load_box(&box2, 0.1, 1.0, 0.1);
 
 	camera_set(&cam, 1.05, (float)width / (float)height);
-	camera_move(&cam, (vec3){ 0, 0, 0});
+	camera_set_position(&cam, (vec3){ 0, 0, 0});
+	camera_set_rotation(&cam, (quaternion){0, 0, 0, 1});
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	while (!engine_shutdown()) {
@@ -220,25 +229,48 @@ main(int argc, char **argv)
 		engine_poll();
 		time = glfwGetTime();
 
-		cam_pos[0] = radius * cos(time);
-		cam_pos[1] = 0;
-		cam_pos[2] = radius * sin(time);
+		cc[0] = radius * cos(time + 0.2);
+		cc[1] = 0;
+		cc[2] = radius * sin(time + 0.2);
+		cp[0] = cos(time + 0.2) * cos(position) * cr * 0.9;
+		cp[1] = sin(position) * cr * 0.9;
+		cp[2] = sin(time + 0.2) * cos(position) * cr * 0.9;
+		sub3v(cam_look, cc, cp);
+		render_box(&cam, &shad, &box1, cam_look);
 
-		cam_look[0] = radius * cos(time + 0.8);
-		cam_look[1] = 0;
-		cam_look[2] = radius * sin(time + 0.8);
+		cc[0] = radius * cos(time);
+		cc[1] = 0;
+		cc[2] = radius * sin(time);
+		cp[0] = cos(time) * cos(position) * cr * 0.85;
+		cp[1] = sin(position) * cr * 0.85;
+		cp[2] = sin(time) * cos(position) * cr * 0.85;
+		sub3v(cam_pos, cc, cp);
 
+		add3v(cn, cp, (vec3){0,0,0});
+		normalize3(cn);
 		if (!flycam) {
-			vec3 up;
+
+			vec3 up, fwd;
+			vec4 nn, nnn;
+			float an;
+			mat3 view;
+			quaternion q;
+
+			nn[0] = sin(time);
+			nn[1] = cos(time);
+			nn[2] = 0;
+			nn[3] = 1;
+
+			vec3 s, u, f;
+			sub3v(f, cam_look, cam.position);
+			quaternion_look_at(q, f, cn);
 			camera_set_position(&cam, cam_pos);
-			camera_get_up(&cam, up);
-			camera_look_at(&cam, cam_look, up);
+			camera_set_rotation(&cam, q);
 		}
 
 		render_box(&cam, &shad, &torus, NULL);
 		render_box(&cam, &normal_shad, &torus, NULL);
 		render_box(&cam, &shad, &box1, cam_pos);
-		render_box(&cam, &shad, &box2, cam_look);
 	}
 
 	shader_free(&shad);

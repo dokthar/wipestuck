@@ -18,5 +18,5 @@ void camera_set_position(struct camera* c, vec3 pos);
 void camera_set_rotation(struct camera *c, quaternion q);
 void camera_move(struct camera* c, vec3 off);
 void camera_rotate(struct camera* c, vec3 axis, float angle);
-
+void camera_apply(struct camera *c, quaternion q);
 #endif

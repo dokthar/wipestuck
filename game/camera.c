@@ -75,14 +75,22 @@ camera_move(struct camera *c, vec3 off)
 }
 
 void
+camera_apply(struct camera *c, quaternion q)
+{
+	quaternion old;
+
+	memcpy(old, c->rotation, sizeof(old));
+	quaternion_mul(c->rotation, q, old);
+	camera_update_view(c);
+}
+
+void
 camera_rotate(struct camera *c, vec3 axis, float angle)
 {
 	quaternion q, old;
 
 	quaternion_set_axis_angle(q, axis, angle);
-	memcpy(old, c->rotation, sizeof(old));
-	quaternion_mul(c->rotation, q, old);
-	camera_update_view(c);
+	camera_apply(c, q);
 }
 
 void
@@ -97,8 +105,8 @@ camera_set_rotation(struct camera *c, quaternion q)
  * courante vers l'objet a observer. Si la camera tourne le dos a l'objet 
  * on utilise up (axe vertical de la camera comme axe de rotation)
  */
-static void
-rotation_lookat(quaternion q, vec3 start, vec3 dest, vec3 up) {
+void
+rotation_between_vec3(quaternion q, vec3 start, vec3 dest, vec3 up) {
 	vec3 u, s, d;
 	float cosa;
 
@@ -108,9 +116,8 @@ rotation_lookat(quaternion q, vec3 start, vec3 dest, vec3 up) {
 	normalize3(d);
 
 	cosa = dot3(s, d);
-	if (fabsf(cosa) > (1 - 0.0001)) {
+	if (fabsf(cosa) > (1 - 0.00001)) {
 		memcpy(u, up, sizeof(u));
-		printf("yyyyyyyyyyyyyyyyyyyyyyyooooooooooooooooooou\n");
 	} else {
 		cross3(u, s, d);
 	}
@@ -128,7 +135,7 @@ camera_look_at(struct camera *c, vec3 look_at, vec3 up)
 	camera_get_dir(c, start);
 	sub3v(dest, look_at, c->position);
 
-	rotation_lookat(rot, start, dest, up);
+	rotation_between_vec3(rot, start, dest, up);
 
 	memcpy(old, c->rotation, sizeof(old));
 	quaternion_mul(c->rotation, rot, old);
@@ -162,9 +169,8 @@ camera_update_view(struct camera *c)
 {
 	mat3 rot;
 	float x, y, z;
-	vec3 f;
-	vec3 u;
-	vec3 s;
+	vec3 s, u, f;
+
 	quaternion_to_rot3(rot, c->rotation);
 	row3m3(s, rot, 0);
 	row3m3(u, rot, 1);

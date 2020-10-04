@@ -77,6 +77,7 @@ init_glfw(void)
 	glfwGetCursorPos(window, &xpre, &ypre);
 
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void

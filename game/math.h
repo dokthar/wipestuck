@@ -160,8 +160,10 @@ void quaternion_compose(vec3 dest, quaternion q, vec3 v);
 void quaternion_to_mat3(mat3 dest, quaternion q);
 void quaternion_to_mat4(mat4 dest, quaternion q);
 void quaternion_to_rot3(mat3 dest, quaternion q);
+void quaternion_from_rot3(quaternion q, mat3 m);
 void quaternion_from_mat3(quaternion dest, mat3 src);
 void quaternion_from_mat4(quaternion dest, mat4 src);
+void lookat_from_axes(quaternion q, vec3 forward, vec3 up, vec3 side);
 void quaternion_decompose_swing_twist(quaternion src, vec3 direction, quaternion swing, quaternion twist);
 void quaternion_print(quaternion q);
 
