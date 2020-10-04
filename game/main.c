@@ -213,7 +213,7 @@ game_update(void)
 	float surfdist = 0.9;
 	vec3 cc, cp, cn;
 
-	time = 0* glfwGetTime();
+	time = glfwGetTime();
 
 	aheadtime = time + lookahead;
 	cc[0] = radius * cos(aheadtime);
@@ -313,7 +313,7 @@ render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at)
 	glUseProgram(s->prog);
 
 	if (time >= 0)
-		glUniform1f(time,0* glfwGetTime());
+		glUniform1f(time, glfwGetTime());
 
 
 	camera_bind(s, c);
