@@ -23,7 +23,7 @@ camera_set(struct camera* c, float fov, float ratio)
 void
 camera_bind_view(struct camera *c, GLuint prog, GLint loc)
 {
-	glProgramUniformMatrix4fv(prog, loc, 1, GL_FALSE, (float *)c->view);
+	glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)c->view);
 }
 
 void
@@ -33,7 +33,7 @@ camera_bind_proj(struct camera *c, GLuint prog, GLint loc, float ratio)
 
 	memcpy(p, c->proj, sizeof(p));
 	p[0][0] /= ratio;
-	glProgramUniformMatrix4fv(prog, loc, 1, GL_FALSE, (float *)p);
+	glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)p);
 }
 
 void

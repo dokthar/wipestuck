@@ -129,14 +129,22 @@ const char *frag =
 	"void main(void)\n"
 	"#define M_PI 3.1416\n"
 	"{\n"
-	"	vec2 uv = texcoord + vec2(0.5*time/ M_PI, 0);\n"
-//		"	vec2 uv = mix(texcoord * 2, 2-texcoord * 2, step(0.5, texcoord));\n"
+	"	vec2 uv = texcoord + vec2(0*time/ M_PI, 0);\n"
+//	"	vec2 uv = mix(texcoord * 2, 2-texcoord * 2, step(0.5, texcoord));\n"
 	"\n"
 	"uv *= 20;\n"
-//	"uv *= mat2(cos(a), sin(a), -sin(a), cos(a));\n"
+	"float a = time/20;\n"
+	"uv *= mat2(cos(a), sin(a), -sin(a), cos(a));\n"
 //	"	vec3 col = vec3(step(0.5, fract(uv.rrr)));\n"
-	"	vec3 col = vec3(fract(uv), sin(time*10)*.5+.5);\n"
-	"	out_color = vec4(col,0);\n"
+	"	vec3 col = vec3(0);\n"
+	"	float bpm = 127 / 60.0;\n"
+	"	float wash = mix(0.5, 0.75, fract(bpm*time));\n"
+	"\n"
+	"	uv.x += fract(uv.y*5);\n"
+	"	uv /= vec2(1, 10);\n"
+	"	uv = fract(uv) - 0.5;\n"
+	"	col.r = 1 - step(wash*0.1+mix(0.0, 0.4, 0.5+0.5*sin(time/10)), length(uv));\n"
+	"	out_color = vec4(col.rrr,0);\n"
 	"}\n";
 
 const char *normal_vert =
@@ -205,7 +213,7 @@ game_update(void)
 	float surfdist = 0.9;
 	vec3 cc, cp, cn;
 
-	time = glfwGetTime();
+	time = 0* glfwGetTime();
 
 	aheadtime = time + lookahead;
 	cc[0] = radius * cos(aheadtime);
@@ -273,8 +281,8 @@ main(int argc, char **argv)
 		if (xray)
 			render_box(&cam, &normal_shad, &torus, NULL);
 
-		render_box(&cam, &shad, &box1, cam_look);
-		render_box(&cam, &shad, &box1, cam_pos);
+//		render_box(&cam, &shad, &box1, cam_look);
+//		render_box(&cam, &shad, &box1, cam_pos);
 	}
 
 	shader_free(&shad);
@@ -302,8 +310,11 @@ render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at)
 	mat4 model;
 	GLint time = glGetUniformLocation(s->prog, "time");
 
+	glUseProgram(s->prog);
+
 	if (time >= 0)
-		glProgramUniform1f(s->prog, time, glfwGetTime());
+		glUniform1f(time,0* glfwGetTime());
+
 
 	camera_bind(s, c);
 	model_loc = glGetUniformLocation(s->prog, "model");
@@ -315,12 +326,8 @@ render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at)
 		model[3][3] = 1;
 	}
 
-	glProgramUniformMatrix4fv(s->prog, model_loc, 1, GL_FALSE, (float *)model);
+	glUniformMatrix4fv(model_loc, 1, GL_FALSE, (float *)model);
 
-	if (xray)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	else
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	engine_render(c, s, m);
 }

@@ -16,4 +16,7 @@ $(OBJ): $(HDR)
 $(BIN): $(OBJ)
 	$(AR) rc $@ $(OBJ)
 
-.PHONY: all
+clean:
+	rm -f $(BIN) $(OBJ)
+
+.PHONY: all clean

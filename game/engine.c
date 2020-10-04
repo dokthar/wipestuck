@@ -11,13 +11,13 @@ engine_render(struct camera *c, struct shader *s, struct mesh *m)
 	GLint position;
 	GLint normal;
 	GLint texcoord;
+	glUseProgram(s->prog);
 
 	position = glGetAttribLocation(s->prog, "in_pos");
 	normal = glGetAttribLocation(s->prog, "in_normal");
 	texcoord = glGetAttribLocation(s->prog, "in_texcoord");
 	mesh_bind(m, position, normal, texcoord);
 
-	glUseProgram(s->prog);
 	glBindVertexArray(m->vao);
 	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK);
 	glDepthMask(GL_TRUE);
@@ -185,19 +185,20 @@ mesh_bind(struct mesh *m, GLint position, GLint normal, GLint texture)
 	if (position >= 0) {
 		glBindBuffer(GL_ARRAY_BUFFER, m->vbo[m->idx_positions]);
 		glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexArrayAttrib(m->vao, position);
+//		glEnableVertexArrayAttrib(m->vao, position);
+		glEnableVertexAttribArray(position);
 	}
 
 	if (normal >= 0) {
 		glBindBuffer(GL_ARRAY_BUFFER, m->vbo[m->idx_normals]);
 		glVertexAttribPointer(normal, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexArrayAttrib(m->vao, normal);
+		glEnableVertexAttribArray(normal);
 	}
 
 	if (texture >= 0) {
 		glBindBuffer(GL_ARRAY_BUFFER, m->vbo[m->idx_texcoords]);
 		glVertexAttribPointer(texture, 2, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexArrayAttrib(m->vao, texture);
+		glEnableVertexAttribArray(texture);
 	}
 
 	glBindVertexArray(0);
