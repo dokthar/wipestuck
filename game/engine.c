@@ -444,24 +444,24 @@ mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius,
 			normals[(off + c) * 3 + 1] = normals[c * 3 + 1];
 			normals[(off + c) * 3 + 2] = normals[c * 3 + 2];
 			texcoords[(off + c) * 2 + 0] = 1;
-			texcoords[(off + c) * 2 + 1] = 1;
+			texcoords[(off + c) * 2 + 1] = (c / (float) circle_sides);
 		}
 	}
 
 	for (r = 0; r < radial_sides; r++) {
-		off = r * (circle_sides + 1 + 2) * 2;
+		off = r * (circle_sides + 1 + 2);
 		for (c = 0; c <= circle_sides; c++) {
-			indices[off + c * 2 + 0] = (r + 1) * (circle_sides + 1) + c;
-			indices[off + c * 2 + 1] = (r + 0) * (circle_sides + 1) + c;
+			indices[(off + c) * 2 + 0] = (r + 1) * (circle_sides + 1) + c;
+			indices[(off + c) * 2 + 1] = (r + 0) * (circle_sides + 1) + c;
 		}
 		{
-			indices[off + c * 2 + 0] = (r + 1) * (circle_sides + 1) - 1;
-			indices[off + c * 2 + 1] = (r + 1) * (circle_sides + 1) - 1;
-			indices[off + c * 2 + 2] = (r + 2) * (circle_sides + 1);
-			indices[off + c * 2 + 3] = (r + 2) * (circle_sides + 1);
+			indices[(off + c) * 2 + 0] = (r + 1) * (circle_sides + 1) - 1;
+			indices[(off + c) * 2 + 1] = (r + 1) * (circle_sides + 1) - 1;
+			indices[(off + c) * 2 + 2] = (r + 2) * (circle_sides + 1);
+			indices[(off + c) * 2 + 3] = (r + 2) * (circle_sides + 1);
 		}
 	}
-	printf("%d indices\n", ARRAY_LEN(indices));
+
 	mesh_load(m, vert_count, positions, normals, texcoords);
 	mesh_index(m, ARRAY_LEN(indices), indices);
 	m->primitive = GL_TRIANGLE_STRIP;
