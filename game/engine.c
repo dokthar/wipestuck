@@ -411,9 +411,9 @@ mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius,
 			positions[(off + c) * 3 + 1] = cc[1] + y;
 			positions[(off + c) * 3 + 2] = cc[2] + z;
 
-			cp[0] = x;
-			cp[1] = y;
-			cp[2] = z;
+			cp[0] = radial_radius * x;
+			cp[1] = radial_radius * y;
+			cp[2] = radial_radius * z;
 			sub3v(cn, cp, (vec3){0,0,0});
 			normalize3(cn);
 			normals[(off + c) * 3 + 0] = cn[0];

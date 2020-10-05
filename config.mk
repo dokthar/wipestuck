@@ -1,5 +1,5 @@
 # game version
-VERSION = 0.0
+VERSION = 0.1.0
 
 # Customize below to fit system
 
@@ -17,6 +17,6 @@ CFLAGS  = -std=c99 -D_XOPEN_SOURCE=600 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -g -W -lpthread -ldl -lm
 CFLAGS += $(INCS) -DVERSION=\"$(VERSION)\"
 
-LDFLAGS += $(LIBS)
+LDFLAGS += $(LIBS) -Wl,-rpath=./libs
 
 CC_HTML = /usr/lib/emscripten/emcc
