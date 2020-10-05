@@ -13,8 +13,8 @@ LIBS := `pkg-config --libs glfw3 glew` -lm
 #LIBS := -lGLEW -lX11 -lGL -lm
 
 # Flags
-CFLAGS ?= -std=c99 -pedantic
-CFLAGS += -g -W -pthread
+CFLAGS  = -std=c99 -D_XOPEN_SOURCE=600 -D_POSIX_C_SOURCE=200112L
+CFLAGS += -g -W -lpthread -ldl -lm
 CFLAGS += $(INCS) -DVERSION=\"$(VERSION)\"
 
 LDFLAGS += $(LIBS)

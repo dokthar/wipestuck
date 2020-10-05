@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 
 #include "engine.h"
 
@@ -246,21 +247,20 @@ game_update(void)
 	}
 }
 
-#include <unistd.h>
-
 static void
 rate_limit(int rate)
 {
 	static double tlast;
 	double tnext, tcurr;
-	unsigned int usec;
+	struct timespec ts;
 	double period = 1 / (double) rate;
 
 	tnext = tlast + period;
 	tcurr = glfwGetTime() + 0.0001;
 	if (tcurr < tnext) {
-		usec = 1000000 * (tnext - tcurr);
-		usleep(usec);
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000000 * (tnext - tcurr);
+		nanosleep(&ts, NULL);
 	}
 	tlast = glfwGetTime();
 }

@@ -281,7 +281,6 @@ a,-b,c +---+'-a,-b,c
 	m->primitive = GL_TRIANGLES;
 }
 
-#define M_PI 3.14159265358979
 #include <math.h>
 
 static void

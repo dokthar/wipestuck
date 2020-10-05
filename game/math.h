@@ -2,7 +2,6 @@
 #define MATH_H
 
 #include <math.h>
-#define M_PI 3.14159265358979
 
 /* If c99 is available, use the restrict keyword
  * to allow the compiler to do vectorial optimizations
