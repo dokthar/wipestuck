@@ -246,6 +246,25 @@ game_update(void)
 	}
 }
 
+#include <unistd.h>
+
+static void
+rate_limit(int rate)
+{
+	static double tlast;
+	double tnext, tcurr;
+	unsigned int usec;
+	double period = 1 / (double) rate;
+
+	tnext = tlast + period;
+	tcurr = glfwGetTime() + 0.0001;
+	if (tcurr < tnext) {
+		usec = 1000000 * (tnext - tcurr);
+		usleep(usec);
+	}
+	tlast = glfwGetTime();
+}
+
 int
 main(int argc, char **argv)
 {
@@ -272,6 +291,7 @@ main(int argc, char **argv)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	while (!engine_shutdown()) {
+		rate_limit(100);
 		engine_swap(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		engine_poll();
 

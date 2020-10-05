@@ -61,6 +61,7 @@ init_glfw(void)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	glfwWindowHint(GLFW_REFRESH_RATE, 60);
 	glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 
 	window = glfwCreateWindow(width, height, app_name, NULL, NULL);
