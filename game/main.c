@@ -9,6 +9,9 @@
 
 #include "engine.h"
 
+#define NO_AUDIO
+
+#ifndef NO_AUDIO
 #define STB_VORBIS_HEADER_ONLY
 #include "miniaudio/stb_vorbis.c"    /* Enables Vorbis decoding. */
 #define MINIAUDIO_IMPLEMENTATION
@@ -16,6 +19,13 @@
 /* stb_vorbis implementation must come after the implementation of miniaudio. */
 #undef STB_VORBIS_HEADER_ONLY
 #include "miniaudio/stb_vorbis.c"
+
+void init_audio(void);
+void fini_audio(void);
+#else
+void init_audio(void) {}
+void fini_audio(void) {}
+#endif
 
 char *app_name;
 unsigned int width = 1080;
@@ -273,26 +283,6 @@ rate_limit(int rate)
 	tlast = glfwGetTime();
 }
 
-/* Miniaudio device callback */
-void
-data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
-{
-    ma_bool32 isLooping = MA_TRUE;
-
-    ma_decoder* pDecoder = (ma_decoder*)pDevice->pUserData;
-    if (pDecoder == NULL) {
-        return;
-    }
-
-    /*
-    A decoder is a data source which means you can seemlessly plug it into the ma_data_source API. We can therefore take advantage
-    of the "loop" parameter of ma_data_source_read_pcm_frames() to handle looping for us.
-    */
-    ma_data_source_read_pcm_frames(pDecoder, pOutput, frameCount, NULL, isLooping);
-
-    (void)pInput;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -302,41 +292,11 @@ main(int argc, char **argv)
 	struct mesh box1, box2;
 	GLint ret;
 
-    ma_result result;
-    ma_decoder decoder;
-    ma_device_config deviceConfig;
-    ma_device device;
-
-    /* Audio playback init */
-    result = ma_decoder_init_file("./audio/Stuck.ogg", NULL, &decoder);
-    if (result != MA_SUCCESS) {
-        printf("Failed to open audio file /n");
-    } else {
-        deviceConfig = ma_device_config_init(ma_device_type_playback);
-        deviceConfig.playback.format   = decoder.outputFormat;
-        deviceConfig.playback.channels = decoder.outputChannels;
-        deviceConfig.sampleRate        = decoder.outputSampleRate;
-        deviceConfig.dataCallback      = data_callback;
-        deviceConfig.pUserData         = &decoder;
-
-        if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
-            printf("Failed to open playback device.\n");
-            ma_decoder_uninit(&decoder);
-            return -3;
-        }
-
-        if (ma_device_start(&device) != MA_SUCCESS) {
-            printf("Failed to start playback device.\n");
-            ma_device_uninit(&device);
-            ma_decoder_uninit(&decoder);
-            return -4;
-        }
-    }
-
-    /* Game init */
+	/* Game init */
 	app_name = argv[0];
 
 	init_engine();
+	init_audio();
 
 	ret = shader_load(&shad, vert, frag, NULL);
 	ret = shader_load(&normal_shad, normal_vert, normal_frag, normal_geom);
@@ -366,12 +326,9 @@ main(int argc, char **argv)
 	}
 
 	shader_free(&shad);
+	shader_free(&normal_shad);
+	fini_audio();
 	fini_engine();
-
-    if (result == MA_SUCCESS) {
-        ma_device_uninit(&device);
-        ma_decoder_uninit(&decoder);
-    }
 
 	return 0;
 }
@@ -416,3 +373,69 @@ render_box(struct camera *c, struct shader *s, struct mesh *m, vec3 at)
 
 	engine_render(c, s, m);
 }
+
+#ifndef NO_AUDIO
+/* Miniaudio device callback */
+void
+audio_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+	ma_bool32 isLooping = MA_TRUE;
+	ma_decoder* pDecoder = (ma_decoder*)pDevice->pUserData;
+
+	if (pDecoder == NULL) {
+		return;
+	}
+
+	/*
+	  A decoder is a data source which means you can seemlessly plug it into the ma_data_source API. We can therefore take advantage
+	  of the "loop" parameter of ma_data_source_read_pcm_frames() to handle looping for us.
+	*/
+	ma_data_source_read_pcm_frames(pDecoder, pOutput, frameCount, NULL, isLooping);
+
+	(void)pInput;
+}
+
+ma_result audio_ma_result;
+ma_decoder audio_ma_decoder;
+ma_device audio_ma_device;
+
+void
+fini_audio(void)
+{
+	if (audio_ma_result == MA_SUCCESS) {
+		ma_device_uninit(&audio_ma_device);
+		ma_decoder_uninit(&audio_ma_decoder);
+	}
+}
+
+void
+init_audio(void)
+{
+	ma_device_config deviceConfig;
+
+	/* Audio playback init */
+	audio_ma_result = ma_decoder_init_file("./audio/Stuck.ogg", NULL, &audio_ma_decoder);
+	if (audio_ma_result != MA_SUCCESS) {
+		printf("Failed to open audio file\n");
+	} else {
+		deviceConfig = ma_device_config_init(ma_device_type_playback);
+		deviceConfig.playback.format   = audio_ma_decoder.outputFormat;
+		deviceConfig.playback.channels = audio_ma_decoder.outputChannels;
+		deviceConfig.sampleRate        = audio_ma_decoder.outputSampleRate;
+		deviceConfig.dataCallback      = audio_callback;
+		deviceConfig.pUserData         = &audio_ma_decoder;
+
+		if (ma_device_init(NULL, &deviceConfig, &audio_ma_device) != MA_SUCCESS) {
+			printf("Failed to open playback device.\n");
+			ma_decoder_uninit(&audio_ma_decoder);
+			return;
+		}
+
+		if (ma_device_start(&audio_ma_device) != MA_SUCCESS) {
+			printf("Failed to start playback device.\n");
+			fini_audio();
+			return;
+		}
+	}
+}
+#endif
