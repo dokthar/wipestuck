@@ -4,7 +4,7 @@
 include config.mk
 
 OBJ = game.a
-BIN = drone
+BIN = wipestuck
 
 all: $(BIN)
 
