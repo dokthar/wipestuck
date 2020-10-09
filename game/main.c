@@ -263,9 +263,8 @@ struct bomb bombs[10];
 void
 spawn_bomb(struct bomb *bomb, float cr, float rr)
 {
-	static unsigned int bombs_seed = 0xf00;
-	float a = 2 * M_PI * (rand_r(&bombs_seed) / (float)RAND_MAX);
-	float b = 2 * M_PI * (rand_r(&bombs_seed) / (float)RAND_MAX);
+	float a = 2 * M_PI * (rand() / (float)RAND_MAX);
+	float b = 2 * M_PI * (rand() / (float)RAND_MAX);
 	float x, y, z;
 	quaternion q1, q2, q3;
 	
@@ -378,6 +377,8 @@ main(int argc, char **argv)
 	mat4 rot_id;
 	GLint ret;
 	unsigned int i;
+	static unsigned int bombs_seed = 0xf00;
+	srand(bombs_seed);
 
 	/* Game init */
 	app_name = argv[0];
