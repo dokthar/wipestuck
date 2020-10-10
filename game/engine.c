@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -384,16 +385,20 @@ void
 mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius,
 		unsigned int circle_sides, unsigned int radial_sides)
 {
-	unsigned int vert_count = (circle_sides + 1) * (radial_sides + 1);
-	float positions[vert_count * 3];
-	float normals[vert_count * 3];
-	float texcoords[vert_count * 2];
-	unsigned int indices[radial_sides * (circle_sides + 1 + 2) * 2];
+	unsigned int vert_count = (radial_sides + 1) * (circle_sides + 1);
+	unsigned int indx_count = 2 * radial_sides * (circle_sides + 1 + 2);
+	float *positions = malloc(vert_count * 3 * sizeof(float));
+	float *normals  = malloc(vert_count * 3 * sizeof(float));
+	float *texcoords = malloc(vert_count * 2 * sizeof(float));
+	unsigned int *indices = malloc(indx_count * sizeof(unsigned int));
 	float ra, ca, x, y, z;
 	unsigned int r, c;
 	vec3 cc, cp, cn;
 	unsigned int off;
-	
+
+	if (!positions || !normals || !texcoords || !indices)
+		die("%s: memory allocation failed!\n", __func__);
+
 	for (r = 0; r < radial_sides; r++) {
 		ra = 2 * M_PI * (r / (float) radial_sides);
 		/* circle center */
@@ -414,7 +419,9 @@ mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius,
 			cp[0] = radial_radius * x;
 			cp[1] = radial_radius * y;
 			cp[2] = radial_radius * z;
-			sub3v(cn, cp, (vec3){0,0,0});
+			cp[0] = cn[0];
+			cp[1] = cn[1];
+			cp[2] = cn[2];
 			normalize3(cn);
 			normals[(off + c) * 3 + 0] = cn[0];
 			normals[(off + c) * 3 + 1] = cn[1];
@@ -457,14 +464,24 @@ mesh_load_torus(struct mesh *m, float circle_radius, float radial_radius,
 		{
 			indices[(off + c) * 2 + 0] = (r + 1) * (circle_sides + 1) - 1;
 			indices[(off + c) * 2 + 1] = (r + 1) * (circle_sides + 1) - 1;
-			indices[(off + c) * 2 + 2] = (r + 2) * (circle_sides + 1);
-			indices[(off + c) * 2 + 3] = (r + 2) * (circle_sides + 1);
+			if (r + 2 <= radial_sides) {
+				indices[(off + c) * 2 + 2] = (r + 2) * (circle_sides + 1);
+				indices[(off + c) * 2 + 3] = (r + 2) * (circle_sides + 1);
+			} else {
+				indices[(off + c) * 2 + 2] = 0;
+				indices[(off + c) * 2 + 3] = 0;
+			}
 		}
 	}
 
 	mesh_load(m, vert_count, positions, normals, texcoords);
-	mesh_index(m, ARRAY_LEN(indices), indices);
+	mesh_index(m, indx_count, indices);
 	m->primitive = GL_TRIANGLE_STRIP;
+
+	free(positions);
+	free(normals);
+	free(texcoords);
+	free(indices);
 }
 
 char logbuf[4096];
