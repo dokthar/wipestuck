@@ -365,6 +365,11 @@ main(int argc, char **argv)
 	static unsigned int bombs_seed = 0xf00;
 	srand(bombs_seed);
 
+	if (argc == 2 && strcmp(argv[1], "-v") == 0) {
+		printf("version %s\n", VERSION);
+		return 0;
+	}
+
 	/* Game init */
 	app_name = argv[0];
 
