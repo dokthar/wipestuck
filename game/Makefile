@@ -3,8 +3,8 @@
 
 include ../config.mk
 
-HDR = engine.h util.h math.h camera.h mesh.h
-SRC = engine.c util.c math.c camera.c
+HDR = engine.h util.h math.h camera.h audio.h mesh.h
+SRC = engine.c util.c math.c camera.c audio.c
 SRC += main.c
 OBJ = $(SRC:.c=.o)
 BIN = game.a
