@@ -21,9 +21,9 @@ ifeq ($(TARGET),x86)
 PKG_CONFIG_PATH = /usr/lib32/pkgconfig/
 CFLAGS += -m32
 LDFLAGS += -m32
-LDFLAGS += -L./libs32 -Wl,-rpath=./libs32
-else
-LDFLAGS += -Wl,-rpath=./libs
+LDFLAGS += -L./libs32 -Wl,-rpath=./libs32 -ldl
+else ifeq ($(TARGET),)
+LDFLAGS += -Wl,-rpath=./libs -ldl
 endif
 
 ifneq ($(CROSS_COMPILE),)
